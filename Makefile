@@ -7,16 +7,18 @@
 
 CC		=	g++
 
-NAME	=	bin
+NAME	=	graphicEngine
 
 SRC		=	main.cpp
 
 OBJ		=	$(SRC:.cpp=.o)
 
+FLAGS	=	-lsfml-graphics -lsfml-window -lsfml-system
+
 all:	$(NAME)
 
 $(NAME):	$(OBJ)
-	$(CC) -o $(NAME) $(OBJ)
+	$(CC) -o $(NAME) $(OBJ) $(FLAGS)
 
 clean:
 	rm -f $(OBJ)
