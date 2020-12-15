@@ -16,12 +16,19 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
+typedef unsigned char uSmall; // 0 - 255
+
 struct Vect3D {
     float x, y, z;
 };
 
+struct Color {
+    uSmall r, g, b;
+};
+
 struct Triangle {
     Vect3D p[3];
+    Color color;
 };
 
 struct Mesh {
@@ -55,7 +62,6 @@ class SFMLDrawer : public IGraphicsDrawer {
         std::chrono::_V2::system_clock::time_point _start;
 
         void drawTriangle(Triangle) noexcept;
-        sf::ConvexShape createLine(sf::Vector2f p1, sf::Vector2f p2) const noexcept;
         void mutliplyMatrixVector(Vect3D &i, Vect3D &o, Matrix4x4 &m) const noexcept;
 
         float _fTheta = 0;
@@ -202,6 +208,28 @@ void SFMLDrawer::onUpdate()
             normal.z * (triTranslated.p[0].z - _vCamera.z) < 0.0f
         ) {
 
+            // Illumination
+            Vect3D lightDirection = {0.0f, 0.0f, -1.0f};
+            float l = sqrtf(
+                lightDirection.x * lightDirection.x +
+                lightDirection.y * lightDirection.y +
+                lightDirection.z * lightDirection.z);
+
+            lightDirection.x /= l;
+            lightDirection.y /= l;
+            lightDirection.z /= l;
+
+            float dp =
+                normal.x * lightDirection.x +
+                normal.y * lightDirection.y +
+                normal.z * lightDirection.z;
+
+            triTranslated.color = {
+                (uSmall)(dp * 255),
+                (uSmall)(dp * 255),
+                (uSmall)(dp * 255)
+            };
+
             // Project triangle from 3D to 2D
             mutliplyMatrixVector(triTranslated.p[0], triProjected.p[0], _matProj);
             mutliplyMatrixVector(triTranslated.p[1], triProjected.p[1], _matProj);
@@ -222,6 +250,8 @@ void SFMLDrawer::onUpdate()
             triProjected.p[2].x *= 0.5f * (float)WINDOW_WIDTH;
             triProjected.p[2].y *= 0.5f * (float)WINDOW_HEIGHT;
 
+            triProjected.color = triTranslated.color;
+
             this->drawTriangle(triProjected);
 
         }
@@ -232,24 +262,16 @@ void SFMLDrawer::onUpdate()
 
 void SFMLDrawer::drawTriangle(Triangle tri) noexcept
 {
-    _window.draw(this->createLine(sf::Vector2f(tri.p[0].x, tri.p[0].y), sf::Vector2f(tri.p[1].x, tri.p[1].y)));
-    _window.draw(this->createLine(sf::Vector2f(tri.p[1].x, tri.p[1].y), sf::Vector2f(tri.p[2].x, tri.p[2].y)));
-    _window.draw(this->createLine(sf::Vector2f(tri.p[2].x, tri.p[2].y), sf::Vector2f(tri.p[0].x, tri.p[0].y)));
-}
+    sf::ConvexShape triangle(3);
 
-sf::ConvexShape SFMLDrawer::createLine(sf::Vector2f p1, sf::Vector2f p2) const noexcept
-{
-    sf::ConvexShape convexShape(4);
+    triangle.setOutlineColor(sf::Color::White);
+    triangle.setFillColor(sf::Color(tri.color.r, tri.color.g, tri.color.b));
 
-    convexShape.setOutlineThickness(1);
-    convexShape.setOutlineColor(sf::Color::White);
+    triangle.setPoint(0, sf::Vector2f(tri.p[0].x, tri.p[0].y));
+    triangle.setPoint(1, sf::Vector2f(tri.p[1].x, tri.p[1].y));
+    triangle.setPoint(2, sf::Vector2f(tri.p[2].x, tri.p[2].y));
 
-    convexShape.setPoint(0, p1);
-    convexShape.setPoint(1, p2);
-    convexShape.setPoint(2, p2);
-    convexShape.setPoint(3, p1);
-
-    return convexShape;
+    _window.draw(triangle);
 }
 
 void SFMLDrawer::mutliplyMatrixVector(Vect3D &i, Vect3D &o, Matrix4x4 &m) const noexcept
