@@ -62,6 +62,8 @@ class SFMLDrawer : public IGraphicsDrawer {
 
         Mesh _meshCube;
         Matrix4x4 _matProj;
+
+        Vect3D _vCamera;
 };
 
 SFMLDrawer::SFMLDrawer(): _window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "My Window")
@@ -170,26 +172,59 @@ void SFMLDrawer::onUpdate()
         triTranslated.p[1].z = triRotatedZX.p[1].z + 3.0f;
         triTranslated.p[2].z = triRotatedZX.p[2].z + 3.0f;
 
-        mutliplyMatrixVector(triTranslated.p[0], triProjected.p[0], _matProj);
-        mutliplyMatrixVector(triTranslated.p[1], triProjected.p[1], _matProj);
-        mutliplyMatrixVector(triTranslated.p[2], triProjected.p[2], _matProj);
+        Vect3D line1;
+        Vect3D line2;
+        Vect3D normal;
 
-        // Scale into view
-        triProjected.p[0].x += 1.0f;
-        triProjected.p[0].y += 1.0f;
-        triProjected.p[1].x += 1.0f;
-        triProjected.p[1].y += 1.0f;
-        triProjected.p[2].x += 1.0f;
-        triProjected.p[2].y += 1.0f;
+        line1.x = triTranslated.p[1].x - triTranslated.p[0].x;
+        line1.y = triTranslated.p[1].y - triTranslated.p[0].y;
+        line1.z = triTranslated.p[1].z - triTranslated.p[0].z;
 
-        triProjected.p[0].x *= 0.5f * (float)WINDOW_WIDTH;
-        triProjected.p[0].y *= 0.5f * (float)WINDOW_HEIGHT;
-        triProjected.p[1].x *= 0.5f * (float)WINDOW_WIDTH;
-        triProjected.p[1].y *= 0.5f * (float)WINDOW_HEIGHT;
-        triProjected.p[2].x *= 0.5f * (float)WINDOW_WIDTH;
-        triProjected.p[2].y *= 0.5f * (float)WINDOW_HEIGHT;
+        line2.x = triTranslated.p[2].x - triTranslated.p[0].x;
+        line2.y = triTranslated.p[2].y - triTranslated.p[0].y;
+        line2.z = triTranslated.p[2].z - triTranslated.p[0].z;
 
-        this->drawTriangle(triProjected);
+        normal.x = line1.y * line2.z - line1.z * line2.y;
+        normal.y = line1.z * line2.x - line1.x * line2.z;
+        normal.z = line1.x * line2.y - line1.y * line2.x;
+
+        float l = sqrtf(
+            normal.x * normal.x +
+            normal.y * normal.y +
+            normal.z * normal.z);
+
+        normal.x /= l;
+        normal.y /= l;
+        normal.z /= l;
+
+        if (normal.x * (triTranslated.p[0].x - _vCamera.x) +
+            normal.y * (triTranslated.p[0].y - _vCamera.y) +
+            normal.z * (triTranslated.p[0].z - _vCamera.z) < 0.0f
+        ) {
+
+            // Project triangle from 3D to 2D
+            mutliplyMatrixVector(triTranslated.p[0], triProjected.p[0], _matProj);
+            mutliplyMatrixVector(triTranslated.p[1], triProjected.p[1], _matProj);
+            mutliplyMatrixVector(triTranslated.p[2], triProjected.p[2], _matProj);
+
+            // Scale into view
+            triProjected.p[0].x += 1.0f;
+            triProjected.p[0].y += 1.0f;
+            triProjected.p[1].x += 1.0f;
+            triProjected.p[1].y += 1.0f;
+            triProjected.p[2].x += 1.0f;
+            triProjected.p[2].y += 1.0f;
+
+            triProjected.p[0].x *= 0.5f * (float)WINDOW_WIDTH;
+            triProjected.p[0].y *= 0.5f * (float)WINDOW_HEIGHT;
+            triProjected.p[1].x *= 0.5f * (float)WINDOW_WIDTH;
+            triProjected.p[1].y *= 0.5f * (float)WINDOW_HEIGHT;
+            triProjected.p[2].x *= 0.5f * (float)WINDOW_WIDTH;
+            triProjected.p[2].y *= 0.5f * (float)WINDOW_HEIGHT;
+
+            this->drawTriangle(triProjected);
+
+        }
     }
 
     _window.display();
