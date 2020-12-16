@@ -12,6 +12,8 @@
 #include <fstream>
 #include <strstream>
 
+#include <algorithm>
+
 #include <SFML/System.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
@@ -126,33 +128,7 @@ void SFMLDrawer::onCreate()
     _window.setFramerateLimit(30);
     _start = std::chrono::system_clock::now();
 
-    _meshCube.tris = {
-
-        // SOUTH
-        { 0.0f, 0.0f, 0.0f,    0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 0.0f },
-        { 0.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 0.0f, 0.0f },
-
-        // EAST
-        { 1.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 1.0f, 1.0f },
-        { 1.0f, 0.0f, 0.0f,    1.0f, 1.0f, 1.0f,    1.0f, 0.0f, 1.0f },
-
-        // NORTH
-        { 1.0f, 0.0f, 1.0f,    1.0f, 1.0f, 1.0f,    0.0f, 1.0f, 1.0f },
-        { 1.0f, 0.0f, 1.0f,    0.0f, 1.0f, 1.0f,    0.0f, 0.0f, 1.0f },
-
-        // WEST
-        { 0.0f, 0.0f, 1.0f,    0.0f, 1.0f, 1.0f,    0.0f, 1.0f, 0.0f },
-        { 0.0f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f },
-
-        // TOP
-        { 0.0f, 1.0f, 0.0f,    0.0f, 1.0f, 1.0f,    1.0f, 1.0f, 1.0f },
-        { 0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f, 0.0f },
-
-        // BOTTOM
-        { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f },
-        { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f,    1.0f, 0.0f, 0.0f },
-
-    };
+    _meshCube.loadFromObjFile("spaceship.obj");
 
     float fNear = 0.1f;
     float fFar = 1000.0f;
@@ -200,6 +176,8 @@ void SFMLDrawer::onUpdate()
     matRotZ.m[2][2] = 1;
     matRotZ.m[3][3] = 1;
 
+    std::vector<Triangle> trianglesToRaster;
+
     for (auto tri : _meshCube.tris) {
         Triangle triRotatedZ;
         Triangle triRotatedZX;
@@ -215,9 +193,9 @@ void SFMLDrawer::onUpdate()
         mutliplyMatrixVector(triRotatedZ.p[2], triRotatedZX.p[2], matRotX);
 
         triTranslated = triRotatedZX;
-        triTranslated.p[0].z = triRotatedZX.p[0].z + 3.0f;
-        triTranslated.p[1].z = triRotatedZX.p[1].z + 3.0f;
-        triTranslated.p[2].z = triRotatedZX.p[2].z + 3.0f;
+        triTranslated.p[0].z = triRotatedZX.p[0].z + 8.0f;
+        triTranslated.p[1].z = triRotatedZX.p[1].z + 8.0f;
+        triTranslated.p[2].z = triRotatedZX.p[2].z + 8.0f;
 
         Vect3D line1;
         Vect3D line2;
@@ -265,7 +243,7 @@ void SFMLDrawer::onUpdate()
                 normal.y * lightDirection.y +
                 normal.z * lightDirection.z;
 
-            triTranslated.color = {
+            triProjected.color = {
                 (uSmall)(dp * 255),
                 (uSmall)(dp * 255),
                 (uSmall)(dp * 255)
@@ -291,11 +269,21 @@ void SFMLDrawer::onUpdate()
             triProjected.p[2].x *= 0.5f * (float)WINDOW_WIDTH;
             triProjected.p[2].y *= 0.5f * (float)WINDOW_HEIGHT;
 
-            triProjected.color = triTranslated.color;
-
-            this->drawTriangle(triProjected);
-
+            trianglesToRaster.push_back(triProjected);
         }
+    }
+
+    // Sort triangles from back to front
+    std::sort(trianglesToRaster.begin(), trianglesToRaster.end(), [](const Triangle &t1, const Triangle &t2){
+        float z1 = (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3.0f;
+        float z2 = (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3.0f;
+
+        return z1 > z2;
+    });
+
+    // Display triangles
+    for (const auto &triProjected : trianglesToRaster) {
+        this->drawTriangle(triProjected);
     }
 
     _window.display();
