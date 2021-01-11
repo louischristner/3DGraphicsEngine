@@ -42,6 +42,12 @@ struct Mesh {
     bool loadFromObjFile(const std::string filename);
 };
 
+/**
+ * Create a mesh from a .obj file
+ *
+ * @param filename the name of the .obj file
+ * @return true if succeed, false otherwise
+ */
 bool Mesh::loadFromObjFile(const std::string filename)
 {
     std::ifstream file(filename);
@@ -104,8 +110,8 @@ class SFMLDrawer : public IGraphicsDrawer {
         sf::RenderWindow _window;
         std::chrono::_V2::system_clock::time_point _start;
 
-        void drawTriangle(Triangle) noexcept;
-        void mutliplyMatrixVector(Vect3D &i, Vect3D &o, Matrix4x4 &m) const noexcept;
+        void drawTriangle(const Triangle &) noexcept;
+        void mutliplyMatrixVector(const Vect3D &i, Vect3D &o, const Matrix4x4 &m) const noexcept;
 
         float _fTheta = 0;
 
@@ -122,6 +128,11 @@ SFMLDrawer::SFMLDrawer(): _window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "M
         this->onUpdate();
 }
 
+/**
+ * Called one time at the beginning to init the drawer
+ *
+ * Init the window, chrono & projection matrix
+ */
 void SFMLDrawer::onCreate()
 {
 
@@ -144,6 +155,11 @@ void SFMLDrawer::onCreate()
     _matProj.m[3][3] = 0.0f;
 }
 
+/**
+ * Called every tick to update the drawer objects
+ *
+ * Compute each triangle before display, then display
+ */
 void SFMLDrawer::onUpdate()
 {
     while (_window.pollEvent(_event))
@@ -289,7 +305,12 @@ void SFMLDrawer::onUpdate()
     _window.display();
 }
 
-void SFMLDrawer::drawTriangle(Triangle tri) noexcept
+/**
+ * Draw a triangle
+ *
+ * @param tri triangle to draw
+ */
+void SFMLDrawer::drawTriangle(const Triangle &tri) noexcept
 {
     sf::ConvexShape triangle(3);
 
@@ -303,7 +324,14 @@ void SFMLDrawer::drawTriangle(Triangle tri) noexcept
     _window.draw(triangle);
 }
 
-void SFMLDrawer::mutliplyMatrixVector(Vect3D &i, Vect3D &o, Matrix4x4 &m) const noexcept
+/**
+ * Multiply a vector and a matrix and store the result in an output vector
+ *
+ * @param i input vector
+ * @param o output vector
+ * @param m input matrix
+ */
+void SFMLDrawer::mutliplyMatrixVector(const Vect3D &i, Vect3D &o, const Matrix4x4 &m) const noexcept
 {
     float w = i.x * m.m[0][3] + i.y * m.m[1][3] + i.z * m.m[2][3] + m.m[3][3];
 
