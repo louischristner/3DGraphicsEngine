@@ -25,7 +25,46 @@ typedef unsigned char uSmall; // 0 - 255
 
 struct Vect3D {
     float x, y, z;
+
+    void operator/=(const float &n);
 };
+
+void Vect3D::operator/=(const float &n)
+{
+    x /= n;
+    y /= n;
+    z /= n;
+}
+
+Vect3D operator+(const Vect3D &l, const float &r)
+{
+    Vect3D result;
+
+    result.x = l.x + r;
+    result.y = l.y + r;
+    result.z = l.z + r;
+    return result;
+}
+
+Vect3D operator+(const Vect3D &l, const Vect3D &r)
+{
+    Vect3D result;
+
+    result.x = l.x + r.x;
+    result.y = l.y + r.y;
+    result.z = l.z + r.z;
+    return result;
+}
+
+Vect3D operator-(const Vect3D &l, const Vect3D &r)
+{
+    Vect3D result;
+
+    result.x = l.x - r.x;
+    result.y = l.y - r.y;
+    result.z = l.z - r.z;
+    return result;
+}
 
 struct Color {
     uSmall r, g, b;
@@ -213,30 +252,20 @@ void SFMLDrawer::onUpdate()
         triTranslated.p[1].z = triRotatedZX.p[1].z + 8.0f;
         triTranslated.p[2].z = triRotatedZX.p[2].z + 8.0f;
 
-        Vect3D line1;
-        Vect3D line2;
-        Vect3D normal;
-
-        line1.x = triTranslated.p[1].x - triTranslated.p[0].x;
-        line1.y = triTranslated.p[1].y - triTranslated.p[0].y;
-        line1.z = triTranslated.p[1].z - triTranslated.p[0].z;
-
-        line2.x = triTranslated.p[2].x - triTranslated.p[0].x;
-        line2.y = triTranslated.p[2].y - triTranslated.p[0].y;
-        line2.z = triTranslated.p[2].z - triTranslated.p[0].z;
-
-        normal.x = line1.y * line2.z - line1.z * line2.y;
-        normal.y = line1.z * line2.x - line1.x * line2.z;
-        normal.z = line1.x * line2.y - line1.y * line2.x;
+        Vect3D line1 = triTranslated.p[1] - triTranslated.p[0];
+        Vect3D line2 = triTranslated.p[2] - triTranslated.p[0];
+        Vect3D normal = {
+            line1.y * line2.z - line1.z * line2.y,
+            line1.z * line2.x - line1.x * line2.z,
+            line1.x * line2.y - line1.y * line2.x
+        };
 
         float l = sqrtf(
             normal.x * normal.x +
             normal.y * normal.y +
             normal.z * normal.z);
 
-        normal.x /= l;
-        normal.y /= l;
-        normal.z /= l;
+        normal /= l;
 
         if (normal.x * (triTranslated.p[0].x - _vCamera.x) +
             normal.y * (triTranslated.p[0].y - _vCamera.y) +
@@ -250,9 +279,7 @@ void SFMLDrawer::onUpdate()
                 lightDirection.y * lightDirection.y +
                 lightDirection.z * lightDirection.z);
 
-            lightDirection.x /= l;
-            lightDirection.y /= l;
-            lightDirection.z /= l;
+            lightDirection /= l;
 
             float dp =
                 normal.x * lightDirection.x +
@@ -340,9 +367,7 @@ void SFMLDrawer::mutliplyMatrixVector(const Vect3D &i, Vect3D &o, const Matrix4x
     o.z = i.x * m.m[0][2] + i.y * m.m[1][2] + i.z * m.m[2][2] + m.m[3][2];
 
     if (w != 0.0f) {
-        o.x /= w;
-        o.y /= w;
-        o.z /= w;
+        o /= w;
     }
 }
 
