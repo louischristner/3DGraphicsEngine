@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <fstream>
-#include <strstream>
+#include <sstream>
 
 #include <algorithm>
 
@@ -53,7 +53,7 @@ bool Mesh::loadFromObjFile(const std::string filename)
     std::vector<Vect3D> verts;
 
     while (std::getline(file, line)) {
-        std::strstream stream;
+        std::stringstream stream;
         stream << line;
 
         char junk;
