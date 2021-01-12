@@ -12,17 +12,17 @@ float Vect3D::length(void) const noexcept
     return sqrtf(x * x + y * y + z * z);
 }
 
-Vect3D Vect3D::normal(void) const noexcept
+Vect3D Vect3D::normalize(void) const noexcept
 {
     return ((*this) / length());
 }
 
-float Vect3D::dot(const Vect3D &v) const noexcept
-{
-    return acosf((x * v.x + y * v.y + z * v.z) / (length() * v.length()));
-}
+// float Vect3D::dot(const Vect3D &v) const noexcept
+// {
+//     return acosf((x * v.x + y * v.y + z * v.z) / (length() * v.length()));
+// }
 
-float Vect3D::prod(const Vect3D &v) const noexcept
+float Vect3D::dotProduct(const Vect3D &v) const noexcept
 {
     return (x * v.x + y * v.y + z * v.z);
 }
