@@ -9,119 +9,17 @@
 #include <chrono>
 #include <vector>
 
-#include <fstream>
-#include <sstream>
-
 #include <algorithm>
 
 #include <SFML/System.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
+#include "headers/Vect3D.hpp"
+#include "headers/Mesh.hpp"
+
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
-
-typedef unsigned char uSmall; // 0 - 255
-
-struct Vect3D {
-    float x, y, z;
-
-    void operator/=(const float &n);
-};
-
-void Vect3D::operator/=(const float &n)
-{
-    x /= n;
-    y /= n;
-    z /= n;
-}
-
-Vect3D operator+(const Vect3D &l, const float &r)
-{
-    Vect3D result;
-
-    result.x = l.x + r;
-    result.y = l.y + r;
-    result.z = l.z + r;
-    return result;
-}
-
-Vect3D operator+(const Vect3D &l, const Vect3D &r)
-{
-    Vect3D result;
-
-    result.x = l.x + r.x;
-    result.y = l.y + r.y;
-    result.z = l.z + r.z;
-    return result;
-}
-
-Vect3D operator-(const Vect3D &l, const Vect3D &r)
-{
-    Vect3D result;
-
-    result.x = l.x - r.x;
-    result.y = l.y - r.y;
-    result.z = l.z - r.z;
-    return result;
-}
-
-struct Color {
-    uSmall r, g, b;
-};
-
-struct Triangle {
-    Vect3D p[3];
-    Color color;
-};
-
-struct Mesh {
-    std::vector<Triangle> tris;
-
-    bool loadFromObjFile(const std::string filename);
-};
-
-/**
- * Create a mesh from a .obj file
- *
- * @param filename the name of the .obj file
- * @return true if succeed, false otherwise
- */
-bool Mesh::loadFromObjFile(const std::string filename)
-{
-    std::ifstream file(filename);
-
-    if (!file.is_open())
-        return false;
-
-    std::string line;
-    std::vector<Vect3D> verts;
-
-    while (std::getline(file, line)) {
-        std::stringstream stream;
-        stream << line;
-
-        char junk;
-
-        if (line[0] == 'v') {
-            Vect3D tmpV;
-
-            stream >> junk >> tmpV.x >> tmpV.y >> tmpV.z;
-            verts.push_back(tmpV);
-        } else if (line[0] == 'f') {
-            int indexes[3];
-
-            stream >> junk >> indexes[0] >> indexes[1] >> indexes[2];
-            tris.push_back({
-                verts[indexes[0] - 1],
-                verts[indexes[1] - 1],
-                verts[indexes[2] - 1]
-            });
-        }
-    }
-
-    return true;
-}
 
 struct Matrix4x4 {
     float m[4][4] = {0};
@@ -260,12 +158,7 @@ void SFMLDrawer::onUpdate()
             line1.x * line2.y - line1.y * line2.x
         };
 
-        float l = sqrtf(
-            normal.x * normal.x +
-            normal.y * normal.y +
-            normal.z * normal.z);
-
-        normal /= l;
+        normal = normal.normal();
 
         if (normal.x * (triTranslated.p[0].x - _vCamera.x) +
             normal.y * (triTranslated.p[0].y - _vCamera.y) +
@@ -274,17 +167,9 @@ void SFMLDrawer::onUpdate()
 
             // Illumination
             Vect3D lightDirection = {0.0f, 0.0f, -1.0f};
-            float l = sqrtf(
-                lightDirection.x * lightDirection.x +
-                lightDirection.y * lightDirection.y +
-                lightDirection.z * lightDirection.z);
+            lightDirection = lightDirection.normal();
 
-            lightDirection /= l;
-
-            float dp =
-                normal.x * lightDirection.x +
-                normal.y * lightDirection.y +
-                normal.z * lightDirection.z;
+            float dp = normal.prod(lightDirection);
 
             triProjected.color = {
                 (uSmall)(dp * 255),

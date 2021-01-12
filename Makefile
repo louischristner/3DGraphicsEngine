@@ -9,7 +9,9 @@ CC		=	g++
 
 NAME	=	graphicEngine
 
-SRC		=	main.cpp
+SRC		=	main.cpp		\
+			src/Vect3D.cpp	\
+			src/Mesh.cpp
 
 OBJ		=	$(SRC:.cpp=.o)
 
