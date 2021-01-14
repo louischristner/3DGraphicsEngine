@@ -163,3 +163,16 @@ Vect3D Vect3D::operator/(const Vect3D &v) const
         z / v.z
     };
 }
+
+Vect3D Vect3D::intersectPlane(const Vect3D &plane_p, const Vect3D &plane_n, const Vect3D &lineStart, const Vect3D &lineEnd)
+{
+    Vect3D normalizedPlane_n = plane_n.normalize();
+    float plane_d = -normalizedPlane_n.dotProduct(plane_p);
+    float ad = lineStart.dotProduct(normalizedPlane_n);
+    float bd = lineEnd.dotProduct(normalizedPlane_n);
+    float t = (-plane_d - ad) / (bd - ad);
+    Vect3D lineStartToEnd = lineEnd - lineStart;
+    Vect3D lineToIntersect = lineStartToEnd * t;
+
+    return lineStart + lineToIntersect;
+}

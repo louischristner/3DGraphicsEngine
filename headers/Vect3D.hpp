@@ -36,6 +36,8 @@ struct Vect3D
     Vect3D operator*(const Vect3D &v) const;
     Vect3D operator/(const float &n) const;
     Vect3D operator/(const Vect3D &v) const;
+
+    static Vect3D intersectPlane(const Vect3D &plane_p, const Vect3D &plane_n, const Vect3D &lineStart, const Vect3D &lineEnd);
 };
 
 #endif /* !VECT3D_HPP_ */
