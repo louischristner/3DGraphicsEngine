@@ -25,6 +25,8 @@ struct Color {
 struct Triangle {
     Vect3D p[3];
     Color color;
+
+    std::vector<Triangle> clipAgainstPlane(const Vect3D &plane_p, const Vect3D &plane_n) const;
 };
 
 struct Mesh {

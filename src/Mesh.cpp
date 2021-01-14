@@ -7,6 +7,65 @@
 
 #include "../headers/Mesh.hpp"
 
+std::vector<Triangle> Triangle::clipAgainstPlane(const Vect3D &plane_p, const Vect3D &plane_n) const
+{
+    std::vector<Triangle> validTriangles;
+    Vect3D normalizedPlane_n = plane_n.normalize();
+
+    auto dist = [normalizedPlane_n, plane_p](const Vect3D &point)
+    {
+        // Vect3D n = p.normalize();
+        return (normalizedPlane_n.x * point.x + normalizedPlane_n.y * point.y + normalizedPlane_n.z * point.z - normalizedPlane_n.dotProduct(plane_p));
+    };
+
+    Vect3D const *insidePoints[3];
+    Vect3D const *outsidePoints[3];
+    int nInsidePointCount = 0;
+    int nOutsidePointCount = 0;
+
+    // Iterate through the points of the triangle
+    for (int i = 0; i < 3; i++) {
+        if (dist(p[i]) >= 0) {
+            insidePoints[nInsidePointCount++] = &(p[i]);
+        } else {
+            outsidePoints[nOutsidePointCount++] = &(p[i]);
+        }
+    }
+
+    if (nInsidePointCount == 0) {
+        // do nothing
+    } else if (nInsidePointCount == 3) {
+        validTriangles.push_back(*this);
+    } else if (nInsidePointCount == 1 && nOutsidePointCount == 2) {
+        Triangle newTri;
+
+        newTri.p[0] = *insidePoints[0];
+        newTri.p[1] = Vect3D::intersectPlane(plane_p, plane_n, *insidePoints[0], *outsidePoints[0]);
+        newTri.p[2] = Vect3D::intersectPlane(plane_p, plane_n, *insidePoints[0], *outsidePoints[1]);
+        newTri.color = color;
+
+        validTriangles.push_back(newTri);
+    } else if (nInsidePointCount == 2 && nOutsidePointCount == 1) {
+        Triangle newTri1;
+        Triangle newTri2;
+
+        newTri1.p[0] = *insidePoints[0];
+        newTri1.p[1] = *insidePoints[1];
+        newTri1.p[2] = Vect3D::intersectPlane(plane_p, plane_n, *insidePoints[0], *outsidePoints[0]);
+        newTri1.color = color;
+
+        newTri2.p[0] = *insidePoints[1];
+        newTri2.p[1] = Vect3D::intersectPlane(plane_p, plane_n, *insidePoints[0], *outsidePoints[0]);
+        newTri2.p[2] = Vect3D::intersectPlane(plane_p, plane_n, *insidePoints[1], *outsidePoints[0]);
+        newTri2.color = color;
+
+        validTriangles.push_back(newTri1);
+        validTriangles.push_back(newTri2);
+    }
+
+    return validTriangles;
+}
+
 /**
  * Create a mesh from a .obj file
  *
