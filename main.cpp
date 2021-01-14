@@ -26,8 +26,9 @@ class IGraphicsDrawer {
     public:
         virtual ~IGraphicsDrawer() = default;
 
-        virtual void onCreate() = 0;
+        virtual void onStart() = 0;
         virtual void onUpdate() = 0;
+        virtual void onDisplay() = 0;
 };
 
 class SFMLDrawer : public IGraphicsDrawer {
@@ -35,14 +36,17 @@ class SFMLDrawer : public IGraphicsDrawer {
         SFMLDrawer();
         virtual ~SFMLDrawer() = default;
 
-        void onCreate() override;
+        void onStart() override;
         void onUpdate() override;
+        void onDisplay() override;
 
     protected:
     private:
         sf::Event _event;
         sf::RenderWindow _window;
         std::chrono::_V2::system_clock::time_point _start;
+
+        std::vector<Triangle> _trianglesToDisplay;
 
         void drawTriangle(const Triangle &) noexcept;
 
@@ -56,9 +60,11 @@ class SFMLDrawer : public IGraphicsDrawer {
 
 SFMLDrawer::SFMLDrawer(): _window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "My Window")
 {
-    this->onCreate();
-    while (_window.isOpen())
+    this->onStart();
+    while (_window.isOpen()) {
         this->onUpdate();
+        this->onDisplay();
+    }
 }
 
 /**
@@ -66,7 +72,7 @@ SFMLDrawer::SFMLDrawer(): _window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "M
  *
  * Init the window, chrono & projection matrix
  */
-void SFMLDrawer::onCreate()
+void SFMLDrawer::onStart()
 {
 
     _window.setFramerateLimit(30);
@@ -85,15 +91,13 @@ void SFMLDrawer::onCreate()
 /**
  * Called every tick to update the drawer objects
  *
- * Compute each triangle before display, then display
+ * Compute each triangle before display
  */
 void SFMLDrawer::onUpdate()
 {
     while (_window.pollEvent(_event))
         if (_event.type == sf::Event::Closed)
             _window.close();
-
-    _window.clear(sf::Color::Black);
 
     float fElapsedTime = (std::chrono::system_clock::now() - _start).count() / 1000000000.0f;
     _fTheta += 1.0f * fElapsedTime;
@@ -108,7 +112,8 @@ void SFMLDrawer::onUpdate()
     // Matrix4x4 matWorld = Matrix4x4::createIdentity();
     Matrix4x4 matWorld = (matRotZ * matRotX) * matTrans;
 
-    std::vector<Triangle> trianglesToRaster;
+    // Remove previous triangles
+    _trianglesToDisplay.clear();
 
     for (auto tri : _meshCube.tris) {
         Triangle triProjected;
@@ -168,15 +173,24 @@ void SFMLDrawer::onUpdate()
     }
 
     // Sort triangles from back to front
-    std::sort(trianglesToRaster.begin(), trianglesToRaster.end(), [](const Triangle &t1, const Triangle &t2){
+    std::sort(_trianglesToDisplay.begin(), _trianglesToDisplay.end(), [](const Triangle &t1, const Triangle &t2){
         float z1 = (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3.0f;
         float z2 = (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3.0f;
 
         return z1 > z2;
     });
+}
 
-    // Display triangles
-    for (const auto &triProjected : trianglesToRaster) {
+/**
+ * Called every frame to display content
+ *
+ * Display the triangles
+ */
+void SFMLDrawer::onDisplay(void)
+{
+    _window.clear(sf::Color::Black);
+
+    for (const auto &triProjected : _trianglesToDisplay) {
         this->drawTriangle(triProjected);
     }
 
