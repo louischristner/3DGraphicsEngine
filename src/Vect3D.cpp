@@ -17,6 +17,15 @@ Vect3D Vect3D::normalize(void) const noexcept
     return ((*this) / length());
 }
 
+Vect3D Vect3D::crossProduct(const Vect3D &v) const noexcept
+{
+    return {
+        y * v.z - z * v.y,
+        z * v.x - x * v.z,
+        x * v.y - y * v.x
+    };
+}
+
 // float Vect3D::dot(const Vect3D &v) const noexcept
 // {
 //     return acosf((x * v.x + y * v.y + z * v.z) / (length() * v.length()));

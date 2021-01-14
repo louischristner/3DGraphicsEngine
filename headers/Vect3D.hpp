@@ -16,6 +16,7 @@ struct Vect3D
 
     float length(void) const noexcept;
     Vect3D normalize(void) const noexcept;
+    Vect3D crossProduct(const Vect3D &v) const noexcept;
     float dotProduct(const Vect3D &v) const noexcept;
 
     void operator+=(const float &n);
