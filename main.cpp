@@ -48,14 +48,17 @@ class SFMLDrawer : public IGraphicsDrawer {
 
         std::vector<Triangle> _trianglesToDisplay;
 
+        void handleEvents(const float &) noexcept;
         void drawTriangle(const Triangle &) noexcept;
 
-        float _fTheta = 0;
+        float _fTheta = .0f;
+        float _fYaw = .0f;
 
         Mesh _meshCube;
         Matrix4x4 _matProj;
 
         Vect3D _vCamera;
+        Vect3D _vLookDir;
 };
 
 SFMLDrawer::SFMLDrawer(): _window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "My Window")
@@ -88,6 +91,28 @@ void SFMLDrawer::onStart()
     _matProj = Matrix4x4::createProjection(fFov, fAspectRatio, fNear, fFar);
 }
 
+void SFMLDrawer::handleEvents(const float &fElapsedTime) noexcept
+{
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+        _vCamera.y -= 8.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+        _vCamera.y += 8.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+        _vCamera.x -= 8.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+        _vCamera.x += 8.0f * fElapsedTime;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z))
+        _vCamera.z += 8.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+        _vCamera.z -= 8.0f * fElapsedTime;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
+        _fYaw -= 2.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+        _fYaw += 2.0f * fElapsedTime;
+}
+
 /**
  * Called every tick to update the drawer objects
  *
@@ -100,9 +125,11 @@ void SFMLDrawer::onUpdate()
             _window.close();
 
     float fElapsedTime = (std::chrono::system_clock::now() - _start).count() / 1000000000.0f;
-    _fTheta += 1.0f * fElapsedTime;
+    // _fTheta += 1.0f * fElapsedTime;
 
     _start = std::chrono::system_clock::now();
+
+    handleEvents(fElapsedTime);
 
     // Rotation matrixes
     Matrix4x4 matRotX = Matrix4x4::createRotationX(_fTheta * 0.5f);
@@ -112,12 +139,20 @@ void SFMLDrawer::onUpdate()
     // Matrix4x4 matWorld = Matrix4x4::createIdentity();
     Matrix4x4 matWorld = (matRotZ * matRotX) * matTrans;
 
+    _vLookDir = {0, 0, 1};
+    Vect3D vUp = {0, 1, 0};
+    Vect3D vTarget = _vCamera + _vLookDir;
+
+    Matrix4x4 matCamera = Matrix4x4::createPointAt(_vCamera, vTarget, vUp);
+    Matrix4x4 matView = matCamera.quickInverse();
+
     // Remove previous triangles
     _trianglesToDisplay.clear();
 
     for (auto tri : _meshCube.tris) {
         Triangle triProjected;
         Triangle triTransformed;
+        Triangle triViewed;
 
         triTransformed.p[0] = matWorld * tri.p[0];
         triTransformed.p[1] = matWorld * tri.p[1];
@@ -149,10 +184,14 @@ void SFMLDrawer::onUpdate()
                 (uSmall)(dp * 255)
             };
 
+            triViewed.p[0] = matView * triTransformed.p[0];
+            triViewed.p[1] = matView * triTransformed.p[1];
+            triViewed.p[2] = matView * triTransformed.p[2];
+
             // Project triangle from 3D to 2D
-            triProjected.p[0] = _matProj * triTransformed.p[0];
-            triProjected.p[1] = _matProj * triTransformed.p[1];
-            triProjected.p[2] = _matProj * triTransformed.p[2];
+            triProjected.p[0] = _matProj * triViewed.p[0];
+            triProjected.p[1] = _matProj * triViewed.p[1];
+            triProjected.p[2] = _matProj * triViewed.p[2];
 
             // Scale into view
             Vect3D vOffsetView = {1.0f, 1.0f, .0f};
@@ -168,7 +207,7 @@ void SFMLDrawer::onUpdate()
             triProjected.p[2].x *= 0.5f * (float)WINDOW_WIDTH;
             triProjected.p[2].y *= 0.5f * (float)WINDOW_HEIGHT;
 
-            trianglesToRaster.push_back(triProjected);
+            _trianglesToDisplay.push_back(triProjected);
         }
     }
 
