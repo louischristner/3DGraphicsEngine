@@ -19,7 +19,7 @@
 typedef unsigned char uSmall; // 0 - 255
 
 struct Color {
-    uSmall r, g, b;
+    uSmall r = 255, g = 255, b = 255;
 };
 
 struct Triangle {

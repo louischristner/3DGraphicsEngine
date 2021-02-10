@@ -97,11 +97,13 @@ bool Mesh::loadFromObjFile(const std::string filename)
             int indexes[3];
 
             stream >> junk >> indexes[0] >> indexes[1] >> indexes[2];
-            tris.push_back({
-                verts[indexes[0] - 1],
-                verts[indexes[1] - 1],
-                verts[indexes[2] - 1]
-            });
+
+            Triangle tri;
+            tri.p[0] = verts[indexes[0] - 1];
+            tri.p[1] = verts[indexes[1] - 1];
+            tri.p[2] = verts[indexes[2] - 1];
+            tri.color = {255, 255, 255};
+            tris.push_back(tri);
         }
     }
 

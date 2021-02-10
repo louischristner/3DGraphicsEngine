@@ -9,6 +9,7 @@
 #include <cmath>
 #include <chrono>
 #include <vector>
+#include <random>
 
 #include <algorithm>
 
@@ -23,67 +24,53 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-class IGraphicsDrawer {
+void drawTriangle(const Triangle &tri, sf::RenderWindow &window)
+{
+    sf::ConvexShape triangle(3);
+
+    triangle.setOutlineColor(sf::Color::White);
+    triangle.setFillColor(sf::Color(tri.color.r, tri.color.g, tri.color.b));
+
+    triangle.setPoint(0, sf::Vector2f(tri.p[0].x, tri.p[0].y));
+    triangle.setPoint(1, sf::Vector2f(tri.p[1].x, tri.p[1].y));
+    triangle.setPoint(2, sf::Vector2f(tri.p[2].x, tri.p[2].y));
+
+    window.draw(triangle);
+}
+
+class GraphicEngine3D
+{
     public:
-        virtual ~IGraphicsDrawer() = default;
+        GraphicEngine3D();
+        virtual ~GraphicEngine3D() = default;
 
-        virtual void onStart() = 0;
-        virtual void onUpdate() = 0;
-        virtual void onDisplay() = 0;
-};
+        float getFTheta(void) const;
+        void setFTheta(const float &v);
 
-class SFMLDrawer : public IGraphicsDrawer {
-    public:
-        SFMLDrawer();
-        virtual ~SFMLDrawer() = default;
+        float getFYaw(void) const;
+        void setFYaw(const float &v);
 
-        void onStart() override;
-        void onUpdate() override;
-        void onDisplay() override;
+        Vect3D getVCamera(void) const;
+        void setVCamera(const Vect3D &v);
 
-    protected:
+        Vect3D getVLookDir(void) const;
+        void setVLookDir(const Vect3D &v);
+
+        std::vector<Triangle> projectMeshes(const std::vector<Mesh> &meshes, const float &fElapsedTime);
+        void displayTriangles(const std::vector<Triangle> &triangles, sf::RenderWindow &window);
+
     private:
-        sf::Event _event;
-        sf::RenderWindow _window;
-        std::chrono::_V2::system_clock::time_point _start;
-
-        std::vector<Triangle> _trianglesToDisplay;
-
-        void handleEvents(const float &) noexcept;
-        void drawTriangle(const Triangle &) noexcept;
-
         float _fTheta = .0f;
         float _fYaw = .0f;
 
-        Mesh _meshCube;
         Matrix4x4 _matProj;
 
         Vect3D _vCamera;
         Vect3D _vLookDir;
 };
 
-SFMLDrawer::SFMLDrawer(): _window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "My Window")
+GraphicEngine3D::GraphicEngine3D()
 {
-    this->onStart();
-    while (_window.isOpen()) {
-        this->onUpdate();
-        this->onDisplay();
-    }
-}
-
-/**
- * Called one time at the beginning to init the drawer
- *
- * Init the window, chrono & projection matrix
- */
-void SFMLDrawer::onStart()
-{
-
-    _window.setFramerateLimit(30);
-    _start = std::chrono::system_clock::now();
-
-    _meshCube.loadFromObjFile("assets/mountains.obj");
-
     float fNear = 0.1f;
     float fFar = 1000.0f;
     float fFov = 90.0f;
@@ -92,47 +79,49 @@ void SFMLDrawer::onStart()
     _matProj = Matrix4x4::createProjection(fFov, fAspectRatio, fNear, fFar);
 }
 
-void SFMLDrawer::handleEvents(const float &fElapsedTime) noexcept
+float GraphicEngine3D::getFTheta(void) const
 {
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-        _vCamera.y += 8.0f * fElapsedTime;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-        _vCamera.y -= 8.0f * fElapsedTime;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-        _vCamera.x += 8.0f * fElapsedTime;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-        _vCamera.x -= 8.0f * fElapsedTime;
-
-    Vect3D vForward = _vLookDir * (8.0f * fElapsedTime);
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z))
-        _vCamera += vForward;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-        _vCamera -= vForward;
-
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
-        _fYaw -= 2.0f * fElapsedTime;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-        _fYaw += 2.0f * fElapsedTime;
+    return _fTheta;
 }
 
-/**
- * Called every tick to update the drawer objects
- *
- * Compute each triangle before display
- */
-void SFMLDrawer::onUpdate()
+void GraphicEngine3D::setFTheta(const float &v)
 {
-    while (_window.pollEvent(_event))
-        if (_event.type == sf::Event::Closed)
-            _window.close();
+    _fTheta = v;
+}
 
-    float fElapsedTime = (std::chrono::system_clock::now() - _start).count() / 1000000000.0f;
+float GraphicEngine3D::getFYaw(void) const
+{
+    return _fYaw;
+}
 
-    _start = std::chrono::system_clock::now();
+void GraphicEngine3D::setFYaw(const float &v)
+{
+    _fYaw = v;
+}
 
-    handleEvents(fElapsedTime);
+Vect3D GraphicEngine3D::getVCamera(void) const
+{
+    return _vCamera;
+}
 
+void GraphicEngine3D::setVCamera(const Vect3D &v)
+{
+    _vCamera = v;
+}
+
+Vect3D GraphicEngine3D::getVLookDir(void) const
+{
+    return _vLookDir;
+}
+
+void GraphicEngine3D::setVLookDir(const Vect3D &v)
+{
+    _vLookDir = v;
+}
+
+std::vector<Triangle> GraphicEngine3D::projectMeshes(const std::vector<Mesh> &meshes, const float &fElapsedTime)
+{
+    std::vector<Triangle> trianglesToDisplay;
     // _fTheta += 1.0f * fElapsedTime;
 
     // Rotation matrixes
@@ -150,97 +139,92 @@ void SFMLDrawer::onUpdate()
     Matrix4x4 matCamera = Matrix4x4::createPointAt(_vCamera, vTarget, vUp);
     Matrix4x4 matView = matCamera.quickInverse();
 
-    // Remove previous triangles
-    _trianglesToDisplay.clear();
+    for (auto mesh : meshes) {
+        for (auto tri : mesh.tris) {
+            Triangle triProjected;
+            Triangle triTransformed;
+            Triangle triViewed;
 
-    for (auto tri : _meshCube.tris) {
-        Triangle triProjected;
-        Triangle triTransformed;
-        Triangle triViewed;
+            triTransformed.p[0] = matWorld * tri.p[0];
+            triTransformed.p[1] = matWorld * tri.p[1];
+            triTransformed.p[2] = matWorld * tri.p[2];
 
-        triTransformed.p[0] = matWorld * tri.p[0];
-        triTransformed.p[1] = matWorld * tri.p[1];
-        triTransformed.p[2] = matWorld * tri.p[2];
+            Vect3D line1 = triTransformed.p[1] - triTransformed.p[0];
+            Vect3D line2 = triTransformed.p[2] - triTransformed.p[0];
+            Vect3D normal = line1.crossProduct(line2);
 
-        Vect3D line1 = triTransformed.p[1] - triTransformed.p[0];
-        Vect3D line2 = triTransformed.p[2] - triTransformed.p[0];
-        Vect3D normal = line1.crossProduct(line2);
+            normal = normal.normalize();
 
-        normal = normal.normalize();
+            Vect3D vCameraRay = triTransformed.p[0] - _vCamera;
 
-        Vect3D vCameraRay = triTransformed.p[0] - _vCamera;
+            if (normal.dotProduct(vCameraRay) < 0.0f) {
 
-        if (normal.dotProduct(vCameraRay) < 0.0f) {
+                // Illumination
+                Vect3D lightDirection = {0.0f, 1.0f, -1.0f};
+                lightDirection = lightDirection.normalize();
 
-            // Illumination
-            Vect3D lightDirection = {0.0f, 1.0f, -1.0f};
-            lightDirection = lightDirection.normalize();
+                float dp = std::max(0.1f, lightDirection.dotProduct(normal));
 
-            float dp = std::max(0.1f, lightDirection.dotProduct(normal));
+                triTransformed.color = {
+                    (uSmall)(dp * tri.color.r),
+                    (uSmall)(dp * tri.color.g),
+                    (uSmall)(dp * tri.color.b)
+                };
 
-            triTransformed.color = {
-                (uSmall)(dp * 255),
-                (uSmall)(dp * 255),
-                (uSmall)(dp * 255)
-            };
+                // Convert world space to view space
+                triViewed.p[0] = matView * triTransformed.p[0];
+                triViewed.p[1] = matView * triTransformed.p[1];
+                triViewed.p[2] = matView * triTransformed.p[2];
+                triViewed.color = triTransformed.color;
 
-            // Convert world space to view space
-            triViewed.p[0] = matView * triTransformed.p[0];
-            triViewed.p[1] = matView * triTransformed.p[1];
-            triViewed.p[2] = matView * triTransformed.p[2];
-            triViewed.color = triTransformed.color;
+                std::vector<Triangle> clippedTriangles = triViewed.clipAgainstPlane({.0f, .0f, .1f}, {.0f, .0f, .1f});
 
-            std::vector<Triangle> clippedTriangles = triViewed.clipAgainstPlane({.0f, .0f, .1f}, {.0f, .0f, .1f});
+                for (const auto &clippedTriangle : clippedTriangles) {
 
-            for (const auto &clippedTriangle : clippedTriangles) {
+                    // Project triangle from 3D to 2D
+                    triProjected.p[0] = _matProj * clippedTriangle.p[0];
+                    triProjected.p[1] = _matProj * clippedTriangle.p[1];
+                    triProjected.p[2] = _matProj * clippedTriangle.p[2];
+                    triProjected.color = clippedTriangle.color;
 
-                // Project triangle from 3D to 2D
-                triProjected.p[0] = _matProj * clippedTriangle.p[0];
-                triProjected.p[1] = _matProj * clippedTriangle.p[1];
-                triProjected.p[2] = _matProj * clippedTriangle.p[2];
-                triProjected.color = clippedTriangle.color;
+                    triProjected.p[0].x *= -1.0f;
+                    triProjected.p[1].x *= -1.0f;
+                    triProjected.p[2].x *= -1.0f;
+                    triProjected.p[0].y *= -1.0f;
+                    triProjected.p[1].y *= -1.0f;
+                    triProjected.p[2].y *= -1.0f;
 
-                triProjected.p[0].x *= -1.0f;
-                triProjected.p[1].x *= -1.0f;
-                triProjected.p[2].x *= -1.0f;
-                triProjected.p[0].y *= -1.0f;
-                triProjected.p[1].y *= -1.0f;
-                triProjected.p[2].y *= -1.0f;
+                    // Scale into view
+                    Vect3D vOffsetView = {1.0f, 1.0f, .0f};
 
-                // Scale into view
-                Vect3D vOffsetView = {1.0f, 1.0f, .0f};
+                    triProjected.p[0] += vOffsetView;
+                    triProjected.p[1] += vOffsetView;
+                    triProjected.p[2] += vOffsetView;
 
-                triProjected.p[0] += vOffsetView;
-                triProjected.p[1] += vOffsetView;
-                triProjected.p[2] += vOffsetView;
+                    triProjected.p[0].x *= 0.5f * (float)WINDOW_WIDTH;
+                    triProjected.p[0].y *= 0.5f * (float)WINDOW_HEIGHT;
+                    triProjected.p[1].x *= 0.5f * (float)WINDOW_WIDTH;
+                    triProjected.p[1].y *= 0.5f * (float)WINDOW_HEIGHT;
+                    triProjected.p[2].x *= 0.5f * (float)WINDOW_WIDTH;
+                    triProjected.p[2].y *= 0.5f * (float)WINDOW_HEIGHT;
 
-                triProjected.p[0].x *= 0.5f * (float)WINDOW_WIDTH;
-                triProjected.p[0].y *= 0.5f * (float)WINDOW_HEIGHT;
-                triProjected.p[1].x *= 0.5f * (float)WINDOW_WIDTH;
-                triProjected.p[1].y *= 0.5f * (float)WINDOW_HEIGHT;
-                triProjected.p[2].x *= 0.5f * (float)WINDOW_WIDTH;
-                triProjected.p[2].y *= 0.5f * (float)WINDOW_HEIGHT;
-
-                _trianglesToDisplay.push_back(triProjected);
+                    trianglesToDisplay.push_back(triProjected);
+                }
             }
         }
     }
 
-    // Sort triangles from back to front
-    std::sort(_trianglesToDisplay.begin(), _trianglesToDisplay.end(), [](const Triangle &t1, const Triangle &t2){
+    std::sort(trianglesToDisplay.begin(), trianglesToDisplay.end(), [](const Triangle &t1, const Triangle &t2){
         float z1 = (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3.0f;
         float z2 = (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3.0f;
 
         return z1 > z2;
     });
+
+    return trianglesToDisplay;
 }
 
-/**
- * Called every frame to display content
- *
- * Display the triangles
- */
-void SFMLDrawer::onDisplay(void)
+void GraphicEngine3D::displayTriangles(const std::vector<Triangle> &triangles, sf::RenderWindow &window)
 {
     const Vect3D planeStarts[4] = {
         {0.0f, 0.0f, 0.0f},
@@ -256,9 +240,9 @@ void SFMLDrawer::onDisplay(void)
         {-1.0f, 0.0f, 0.0f}
     };
 
-    _window.clear(sf::Color::Black);
+    window.clear(sf::Color::Black);
 
-    for (const auto &triProjected : _trianglesToDisplay) {
+    for (const auto &triProjected : triangles) {
 
         std::list<Triangle> listTriangles;
         std::vector<Triangle> validTriangles;
@@ -283,35 +267,109 @@ void SFMLDrawer::onDisplay(void)
         }
 
         for (const auto &triToDisplay : listTriangles) {
-            this->drawTriangle(triToDisplay);
+            drawTriangle(triToDisplay, window);
         }
     }
 
-    _window.display();
+    window.display();
 }
 
-/**
- * Draw a triangle
- *
- * @param tri triangle to draw
- */
-void SFMLDrawer::drawTriangle(const Triangle &tri) noexcept
+void handleMovements(GraphicEngine3D &engine, const float &fElapsedTime)
 {
-    sf::ConvexShape triangle(3);
+    float fYaw = engine.getFYaw();
+    Vect3D vCamera = engine.getVCamera();
 
-    triangle.setOutlineColor(sf::Color::White);
-    triangle.setFillColor(sf::Color(tri.color.r, tri.color.g, tri.color.b));
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+        vCamera.y += 8.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+        vCamera.y -= 8.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+        vCamera.x += 8.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+        vCamera.x -= 8.0f * fElapsedTime;
 
-    triangle.setPoint(0, sf::Vector2f(tri.p[0].x, tri.p[0].y));
-    triangle.setPoint(1, sf::Vector2f(tri.p[1].x, tri.p[1].y));
-    triangle.setPoint(2, sf::Vector2f(tri.p[2].x, tri.p[2].y));
+    Vect3D vForward = engine.getVLookDir() * (8.0f * fElapsedTime);
 
-    _window.draw(triangle);
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z))
+        vCamera += vForward;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+        vCamera -= vForward;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
+        fYaw -= 2.0f * fElapsedTime;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+        fYaw += 2.0f * fElapsedTime;
+
+    engine.setFYaw(fYaw);
+    engine.setVCamera(vCamera);
+}
+
+Mesh generateTerrainMesh(const size_t &size)
+{
+    Mesh mesh;
+    std::vector<std::vector<float>> elevation =
+        std::vector<std::vector<float>>(
+            size, std::vector<float>(size, .0f));
+
+    std::srand(std::time(nullptr));
+    for (size_t i = 0; i < size; i++)
+        for (size_t j = 0; j < size; j++)
+            elevation[i][j] = (((float)(std::rand() % 2000)) / 1000.0f) - 1.0f;
+
+    for (size_t i = 0; i < size - 1; i++) {
+        for (size_t j = 0; j < size - 1; j++) {
+            Triangle triangle1;
+            triangle1.p[0] = {(float)i, elevation[i][j + 1], (float)(j + 1)};
+            triangle1.p[1] = {(float)(i + 1), elevation[i + 1][j], (float)j};
+            triangle1.p[2] = {(float)i, elevation[i][j], (float)j};
+
+            Triangle triangle2;
+            triangle2.p[0] = {(float)i, elevation[i][j + 1], (float)(j + 1)};
+            triangle2.p[1] = {(float)(i + 1), elevation[i + 1][j + 1], (float)(j + 1)};
+            triangle2.p[2] = {(float)(i + 1), elevation[i + 1][j], (float)j};
+
+            mesh.tris.push_back(triangle1);
+            mesh.tris.push_back(triangle2);
+        }
+    }
+
+    return mesh;
 }
 
 int main(void)
 {
-    SFMLDrawer drawer;
+    GraphicEngine3D engine;
+    std::vector<Mesh> meshes;
+
+    meshes.push_back(
+        generateTerrainMesh(20));
+
+    sf::Event event;
+    sf::RenderWindow window(
+        sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "My Window");
+
+    float fElapsedTime = .0f;
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
+
+    window.setFramerateLimit(30);
+
+    while (window.isOpen()) {
+
+        fElapsedTime = (std::chrono::system_clock::now() - start).count() / 1000000000.0f;
+        start = std::chrono::system_clock::now();
+
+        std::vector<Triangle> triangles =
+            engine.projectMeshes(meshes, fElapsedTime);
+
+        engine.displayTriangles(triangles, window);
+
+        while (window.pollEvent(event))
+            if (event.type == sf::Event::Closed)
+                window.close();
+
+        handleMovements(engine, fElapsedTime);
+    }
 
     return (0);
 }
