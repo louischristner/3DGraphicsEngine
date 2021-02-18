@@ -9,19 +9,21 @@
 
 void drawTriangle(const Triangle &tri, sf::RenderWindow &window)
 {
-    sf::ConvexShape triangle(3);
+    sf::ConvexShape triangle;
 
-    triangle.setOutlineColor(sf::Color::White);
-    triangle.setFillColor(sf::Color(tri.color.r, tri.color.g, tri.color.b));
-
+    triangle.setPointCount(3);
     triangle.setPoint(0, sf::Vector2f(tri.p[0].x, tri.p[0].y));
     triangle.setPoint(1, sf::Vector2f(tri.p[1].x, tri.p[1].y));
     triangle.setPoint(2, sf::Vector2f(tri.p[2].x, tri.p[2].y));
 
+    triangle.setOutlineColor(sf::Color::White);
+    triangle.setFillColor(sf::Color(tri.color.r, tri.color.g, tri.color.b));
+
     window.draw(triangle);
 }
 
-GraphicEngine3D::GraphicEngine3D()
+GraphicEngine3D::GraphicEngine3D():
+    _vCamera({.0f, 10.0f, .0f})
 {
     float fNear = 0.1f;
     float fFar = 1000.0f;
@@ -83,8 +85,8 @@ std::vector<Triangle> GraphicEngine3D::projectMeshes(const std::vector<Mesh> &me
     Matrix4x4 matTrans = Matrix4x4::createTranslation(0.0f, 0.0f, 5.0f);
     Matrix4x4 matWorld = (matRotZ * matRotX) * matTrans;
 
-    Vect3D vUp = {0, 1, 0};
-    Vect3D vTarget = {0, 0, 1};
+    Vect3D vUp = {.0f, 1.0f, .0f};
+    Vect3D vTarget = {.0f, .0f, 1.0f};
     _vLookDir = Matrix4x4::createRotationY(_fYaw) * vTarget;
     vTarget = _vCamera + _vLookDir;
 
@@ -98,7 +100,7 @@ std::vector<Triangle> GraphicEngine3D::projectMeshes(const std::vector<Mesh> &me
             float distanceWithCamera1 = std::sqrt((tri.p[1].x - _vCamera.x) * (tri.p[1].x - _vCamera.x) + (tri.p[1].y - _vCamera.y) * (tri.p[1].y - _vCamera.y) + (tri.p[1].z - _vCamera.z) * (tri.p[1].z - _vCamera.z));
             float distanceWithCamera2 = std::sqrt((tri.p[2].x - _vCamera.x) * (tri.p[2].x - _vCamera.x) + (tri.p[2].y - _vCamera.y) * (tri.p[2].y - _vCamera.y) + (tri.p[2].z - _vCamera.z) * (tri.p[2].z - _vCamera.z));
 
-            float averageDistanceWithCamera = (distanceWithCamera0 + distanceWithCamera1 + distanceWithCamera2) / 3;
+            float averageDistanceWithCamera = (distanceWithCamera0 + distanceWithCamera1 + distanceWithCamera2) / 3.0f;
 
             if (averageDistanceWithCamera > DISPLAY_DISTANCE)
                 continue;

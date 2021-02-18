@@ -7,9 +7,11 @@
 
 #include "../headers/Vect3D.hpp"
 
+#include <iostream>
+
 float Vect3D::length(void) const noexcept
 {
-    return sqrtf(x * x + y * y + z * z);
+    return std::sqrt((x * x) + (y * y) + (z * z));
 }
 
 Vect3D Vect3D::normalize(void) const noexcept

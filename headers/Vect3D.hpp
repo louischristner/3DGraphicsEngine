@@ -10,6 +10,8 @@
 
 #include <cmath>
 
+#include <iostream>
+
 struct Vect3D
 {
     float x, y, z;
@@ -38,6 +40,12 @@ struct Vect3D
     Vect3D operator/(const Vect3D &v) const;
 
     static Vect3D intersectPlane(const Vect3D &plane_p, const Vect3D &plane_n, const Vect3D &lineStart, const Vect3D &lineEnd);
+
+    friend std::ostream &operator<<(std::ostream &stream, const Vect3D &vect)
+    {
+        stream << "(" << vect.x << ", " << vect.y << ", " << vect.z << ")";
+        return stream;
+    }
 };
 
 #endif /* !VECT3D_HPP_ */
