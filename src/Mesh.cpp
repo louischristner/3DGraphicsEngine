@@ -7,6 +7,11 @@
 
 #include "../headers/Mesh.hpp"
 
+float Triangle::getAverageHeight(void) const
+{
+    return (p[0].y + p[1].y + p[2].y) / 3.0f;
+}
+
 std::vector<Triangle> Triangle::clipAgainstPlane(const Vect3D &plane_p, const Vect3D &plane_n) const
 {
     std::vector<Triangle> validTriangles;

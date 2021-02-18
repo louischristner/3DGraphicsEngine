@@ -26,6 +26,7 @@ struct Triangle {
     Vect3D p[3];
     Color color;
 
+    float getAverageHeight(void) const;
     std::vector<Triangle> clipAgainstPlane(const Vect3D &plane_p, const Vect3D &plane_n) const;
 };
 

@@ -23,6 +23,7 @@
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
+#define DISPLAY_DISTANCE 50
 
 void drawTriangle(const Triangle &tri, sf::RenderWindow &window)
 {
@@ -141,6 +142,16 @@ std::vector<Triangle> GraphicEngine3D::projectMeshes(const std::vector<Mesh> &me
 
     for (auto mesh : meshes) {
         for (auto tri : mesh.tris) {
+
+            float distanceWithCamera0 = std::sqrt((tri.p[0].x - _vCamera.x) * (tri.p[0].x - _vCamera.x) + (tri.p[0].y - _vCamera.y) * (tri.p[0].y - _vCamera.y) + (tri.p[0].z - _vCamera.z) * (tri.p[0].z - _vCamera.z));
+            float distanceWithCamera1 = std::sqrt((tri.p[1].x - _vCamera.x) * (tri.p[1].x - _vCamera.x) + (tri.p[1].y - _vCamera.y) * (tri.p[1].y - _vCamera.y) + (tri.p[1].z - _vCamera.z) * (tri.p[1].z - _vCamera.z));
+            float distanceWithCamera2 = std::sqrt((tri.p[2].x - _vCamera.x) * (tri.p[2].x - _vCamera.x) + (tri.p[2].y - _vCamera.y) * (tri.p[2].y - _vCamera.y) + (tri.p[2].z - _vCamera.z) * (tri.p[2].z - _vCamera.z));
+
+            float averageDistanceWithCamera = (distanceWithCamera0 + distanceWithCamera1 + distanceWithCamera2) / 3;
+
+            if (averageDistanceWithCamera > DISPLAY_DISTANCE)
+                continue;
+
             Triangle triProjected;
             Triangle triTransformed;
             Triangle triViewed;
@@ -304,29 +315,105 @@ void handleMovements(GraphicEngine3D &engine, const float &fElapsedTime)
     engine.setVCamera(vCamera);
 }
 
-Mesh generateTerrainMesh(const size_t &size)
+void generatePerlinNoise2D(const size_t &width, const size_t &height, const std::vector<float> &seed, size_t octaves, const float &bias, std::vector<float> &output)
+{
+    for (size_t x = 0; x < width; x++) {
+        for (size_t y = 0; y < height; y++) {
+            float noise = .0f;
+            float scale = 1.0f;
+            float scaleAcc = .0f;
+
+            for (size_t o = 0; o < octaves; o++) {
+                size_t pitch = width >> o;
+                size_t sampleX1 = (x / pitch) * pitch;
+                size_t sampleY1 = (y / pitch) * pitch;
+
+                size_t sampleX2 = (sampleX1 + pitch) % width;
+                size_t sampleY2 = (sampleY1 + pitch) % width;
+
+                float blendX = (float)(x - sampleX1) / (float)pitch;
+                float blendY = (float)(y - sampleY1) / (float)pitch;
+
+                float sampleT = (1.0f - blendX) * seed[sampleY1 * width + sampleX1] + blendX * seed[sampleY1 * width + sampleX2];
+                float sampleB = (1.0f - blendX) * seed[sampleY2 * width + sampleX1] + blendX * seed[sampleY2 * width + sampleX2];
+
+                scaleAcc += scale;
+                noise += (blendY * (sampleB - sampleT) + sampleT) * scale;
+                scale = scale / bias;
+            }
+
+            output[y * width + x] = noise / scaleAcc;
+        }
+    }
+}
+
+Color getColorBasedOnHeight(const Triangle &triangle, const std::vector<float> &output, const size_t &size, const float &heightMultiplier)
+{
+    size_t index = 0;
+    float averageHeight = triangle.getAverageHeight() / heightMultiplier;
+    float heights[] = {0.3f, 0.4f, 0.45f, 0.55f, 0.6f, 0.7f, 0.9f, 1.0f};
+    Color colors[] = {
+        {20, 40, 170},
+        {30, 150, 230},
+        {250, 220, 25},
+        {110, 200, 80},
+        {0, 135, 0},
+        {130, 100, 50},
+        {90, 70, 40},
+        {255, 255, 255}
+    };
+
+    if (averageHeight == 0.4f) {
+        Triangle tmpTriangle = triangle;
+        tmpTriangle.p[0].y = output[tmpTriangle.p[0].x * size + tmpTriangle.p[0].z] * heightMultiplier;
+        tmpTriangle.p[1].y = output[tmpTriangle.p[1].x * size + tmpTriangle.p[1].z] * heightMultiplier;
+        tmpTriangle.p[2].y = output[tmpTriangle.p[2].x * size + tmpTriangle.p[2].z] * heightMultiplier;
+
+        averageHeight = tmpTriangle.getAverageHeight() / heightMultiplier;
+
+        for (; index < sizeof(heights) / sizeof(float); index++)
+            if (averageHeight < heights[index])
+                break;
+    } else {
+        for (; index < sizeof(heights) / sizeof(float); index++)
+            if (averageHeight < heights[index])
+                break;
+    }
+
+    return colors[index];
+}
+
+Mesh generateTerrainMesh(const size_t &size, const size_t &octaves, const float &bias)
 {
     Mesh mesh;
-    std::vector<std::vector<float>> elevation =
-        std::vector<std::vector<float>>(
-            size, std::vector<float>(size, .0f));
+    float heightMultiplier = 6.0f;
+    std::vector<float> seed(size * size, .0f);
+    std::vector<float> output(size * size, .0f);
+    std::vector<float> flattened(size * size, .0f);
 
     std::srand(std::time(nullptr));
-    for (size_t i = 0; i < size; i++)
-        for (size_t j = 0; j < size; j++)
-            elevation[i][j] = (((float)(std::rand() % 2000)) / 1000.0f) - 1.0f;
+    for (size_t i = 0; i < size * size; i++)
+        seed[i] = (float)std::rand() / (float)RAND_MAX;
+
+    generatePerlinNoise2D(size, size, seed, octaves, bias, output);
+
+    for (size_t i = 0; i < size * size; i++)
+        flattened[i] = ((output[i] < 0.4f) ?
+            0.4f : output[i]) * heightMultiplier;
 
     for (size_t i = 0; i < size - 1; i++) {
         for (size_t j = 0; j < size - 1; j++) {
             Triangle triangle1;
-            triangle1.p[0] = {(float)i, elevation[i][j + 1], (float)(j + 1)};
-            triangle1.p[1] = {(float)(i + 1), elevation[i + 1][j], (float)j};
-            triangle1.p[2] = {(float)i, elevation[i][j], (float)j};
+            triangle1.p[0] = {(float)i, flattened[i * size + (j + 1)], (float)(j + 1)};
+            triangle1.p[1] = {(float)(i + 1), flattened[(i + 1) * size + j], (float)j};
+            triangle1.p[2] = {(float)i, flattened[i * size + j], (float)j};
+            triangle1.color = getColorBasedOnHeight(triangle1, output, size, heightMultiplier);
 
             Triangle triangle2;
-            triangle2.p[0] = {(float)i, elevation[i][j + 1], (float)(j + 1)};
-            triangle2.p[1] = {(float)(i + 1), elevation[i + 1][j + 1], (float)(j + 1)};
-            triangle2.p[2] = {(float)(i + 1), elevation[i + 1][j], (float)j};
+            triangle2.p[0] = {(float)i, flattened[i * size + (j + 1)], (float)(j + 1)};
+            triangle2.p[1] = {(float)(i + 1), flattened[(i + 1) * size + (j + 1)], (float)(j + 1)};
+            triangle2.p[2] = {(float)(i + 1), flattened[(i + 1) * size + j], (float)j};
+            triangle2.color = getColorBasedOnHeight(triangle2, output, size, heightMultiplier);
 
             mesh.tris.push_back(triangle1);
             mesh.tris.push_back(triangle2);
@@ -336,13 +423,17 @@ Mesh generateTerrainMesh(const size_t &size)
     return mesh;
 }
 
-int main(void)
+int main(int ac, char **av)
 {
     GraphicEngine3D engine;
     std::vector<Mesh> meshes;
 
+    float bias = (ac >= 4) ? std::stof(av[3]) : 0.4f;
+    size_t octaves = (ac >= 3) ? std::stoul(av[2]) : 7;
+    size_t terrainSize = (ac >= 2) ? std::stoul(av[1]) : 200;
+
     meshes.push_back(
-        generateTerrainMesh(20));
+        generateTerrainMesh(terrainSize, octaves, bias));
 
     sf::Event event;
     sf::RenderWindow window(
@@ -369,6 +460,12 @@ int main(void)
                 window.close();
 
         handleMovements(engine, fElapsedTime);
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space)) {
+            meshes.clear();
+            meshes.push_back(
+                generateTerrainMesh(terrainSize, octaves, bias));
+        }
     }
 
     return (0);
