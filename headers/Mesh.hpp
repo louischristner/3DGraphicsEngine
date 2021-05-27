@@ -28,6 +28,12 @@ struct Triangle {
 
     float getAverageHeight(void) const;
     std::vector<Triangle> clipAgainstPlane(const Vect3D &plane_p, const Vect3D &plane_n) const;
+
+    friend std::ostream &operator<<(std::ostream &stream, const Triangle &tri)
+    {
+        stream << tri.p[0] << " " << tri.p[1] << " " << tri.p[2];
+        return stream;
+    }
 };
 
 struct Mesh {

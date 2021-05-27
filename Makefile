@@ -15,11 +15,13 @@ SRC		=	main.cpp				\
 			src/Vect3D.cpp			\
 			src/Mesh.cpp			\
 			src/Matrix4x4.cpp		\
+			src/Chunk.cpp			\
 			src/GraphicEngine3D.cpp
 
 DEPS	=	headers/Vect3D.hpp			\
 			headers/Mesh.hpp			\
 			headers/Matrix4x4.hpp		\
+			headers/Chunk.hpp			\
 			headers/GraphicEngine3D.hpp
 
 OBJ		=	$(SRC:.cpp=.o)

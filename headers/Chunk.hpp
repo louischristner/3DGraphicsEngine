@@ -20,7 +20,9 @@ class Chunk
         virtual ~Chunk() = default;
 
         void generateTerrain(const size_t &octaves, const float &bias);
-        Color getColorBasedOnHeight(const Triangle &triangle, const std::vector<float> &output, const float &heightMultiplier) const;
+        void generatePerlinNoise2D(const size_t &width, const size_t &height, const size_t &octaves, const float &bias);
+        void generateSquare(const int &i, const int &j, const std::vector<float> &flattened, const float &heightMultiplier, Triangle &triangle1, Triangle &triangle2);
+        Color getColorBasedOnHeight(const Triangle &triangle, const float &heightMultiplier) const;
 
         Mesh getMesh(void) const;
 
@@ -36,6 +38,7 @@ class Chunk
         Mesh _mesh;
 
         std::vector<float> _seed;
+        std::vector<float> _noise;
 
         const size_t _size = 60;
 };

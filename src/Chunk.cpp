@@ -7,13 +7,18 @@
 
 #include "../headers/Chunk.hpp"
 
-void generatePerlinNoise2D(
+Chunk::Chunk(const int &x, const int &y):
+    _x(x), _y(y)
+{
+    _seed = std::vector<float>(_size * _size, .0f);
+    _noise = std::vector<float>(_size * _size, .0f);
+}
+
+void Chunk::generatePerlinNoise2D(
     const size_t &width,
     const size_t &height,
-    const std::vector<float> &seed,
-    size_t octaves,
-    const float &bias,
-    std::vector<float> &output
+    const size_t &octaves,
+    const float &bias
 )
 {
     for (size_t x = 0; x < width; x++) {
@@ -33,26 +38,20 @@ void generatePerlinNoise2D(
                 float blendX = (float)(x - sampleX1) / (float)pitch;
                 float blendY = (float)(y - sampleY1) / (float)pitch;
 
-                float sampleT = (1.0f - blendX) * seed[sampleY1 * width + sampleX1] + blendX * seed[sampleY1 * width + sampleX2];
-                float sampleB = (1.0f - blendX) * seed[sampleY2 * width + sampleX1] + blendX * seed[sampleY2 * width + sampleX2];
+                float sampleT = (1.0f - blendX) * _seed[sampleY1 * width + sampleX1] + blendX * _seed[sampleY1 * width + sampleX2];
+                float sampleB = (1.0f - blendX) * _seed[sampleY2 * width + sampleX1] + blendX * _seed[sampleY2 * width + sampleX2];
 
                 scaleAcc += scale;
                 noise += (blendY * (sampleB - sampleT) + sampleT) * scale;
                 scale = scale / bias;
             }
 
-            output[y * width + x] = noise / scaleAcc;
+            _noise[y * width + x] = noise / scaleAcc;
         }
     }
 }
 
-Chunk::Chunk(const int &x, const int &y):
-    _x(x), _y(y)
-{
-    _seed = std::vector<float>(_size * _size, .0f);
-}
-
-Color Chunk::getColorBasedOnHeight(const Triangle &triangle, const std::vector<float> &output, const float &heightMultiplier) const
+Color Chunk::getColorBasedOnHeight(const Triangle &triangle, const float &heightMultiplier) const
 {
     size_t index = 0;
     float averageHeight = triangle.getAverageHeight() / heightMultiplier;
@@ -76,9 +75,9 @@ Color Chunk::getColorBasedOnHeight(const Triangle &triangle, const std::vector<f
     if (averageHeight == 0.4f) {
         Triangle tmpTriangle = triangle;
 
-        tmpTriangle.p[0].y = output[getOutputIndexFromVect(triangle.p[0])] * heightMultiplier;
-        tmpTriangle.p[1].y = output[getOutputIndexFromVect(triangle.p[1])] * heightMultiplier;
-        tmpTriangle.p[2].y = output[getOutputIndexFromVect(triangle.p[2])] * heightMultiplier;
+        tmpTriangle.p[0].y = _noise[getOutputIndexFromVect(triangle.p[0])] * heightMultiplier;
+        tmpTriangle.p[1].y = _noise[getOutputIndexFromVect(triangle.p[1])] * heightMultiplier;
+        tmpTriangle.p[2].y = _noise[getOutputIndexFromVect(triangle.p[2])] * heightMultiplier;
 
         averageHeight = tmpTriangle.getAverageHeight() / heightMultiplier;
 
@@ -97,7 +96,6 @@ Color Chunk::getColorBasedOnHeight(const Triangle &triangle, const std::vector<f
 void Chunk::generateTerrain(const size_t &octaves, const float &bias)
 {
     size_t heightMultiplier = 6.0f;
-    std::vector<float> output(_size * _size, .0f);
     std::vector<float> flattened(_size * _size, .0f);
 
     _mesh.tris.clear();
@@ -105,30 +103,44 @@ void Chunk::generateTerrain(const size_t &octaves, const float &bias)
     for (size_t i = 0; i < _size * _size; i++)
         _seed[i] = (float)std::rand() / (float)RAND_MAX;
 
-    generatePerlinNoise2D(_size, _size, _seed, octaves, bias, output);
+    generatePerlinNoise2D(_size, _size, octaves, bias);
 
     for (size_t i = 0; i < _size * _size; i++)
-        flattened[i] = ((output[i] < 0.4f) ?
-            0.4f : output[i]) * heightMultiplier;
+        flattened[i] = ((_noise[i] < 0.4f) ?
+            0.4f : _noise[i]) * heightMultiplier;
 
     for (int i = 0; i < _size - 1; i++) {
         for (int j = 0; j < _size - 1; j++) {
-            Triangle triangle1;
-            triangle1.p[0] = {(float)(_x + i), flattened[i * _size + (j + 1)], (float)(_y + j + 1)};
-            triangle1.p[1] = {(float)(_x + i + 1), flattened[(i + 1) * _size + j], (float)(_y + j)};
-            triangle1.p[2] = {(float)(_x + i), flattened[i * _size + j], (float)(_y + j)};
-            triangle1.color = getColorBasedOnHeight(triangle1, output, heightMultiplier);
-
-            Triangle triangle2;
-            triangle2.p[0] = {(float)(_x + i), flattened[i * _size + (j + 1)], (float)(_y + j + 1)};
-            triangle2.p[1] = {(float)(_x + i + 1), flattened[(i + 1) * _size + (j + 1)], (float)(_y + j + 1)};
-            triangle2.p[2] = {(float)(_x + i + 1), flattened[(i + 1) * _size + j], (float)(_y + j)};
-            triangle2.color = getColorBasedOnHeight(triangle2, output, heightMultiplier);
-
+            Triangle triangle1, triangle2;
+            generateSquare(i, j, flattened, heightMultiplier, triangle1, triangle2);
             _mesh.tris.push_back(triangle1);
             _mesh.tris.push_back(triangle2);
         }
     }
+}
+
+void Chunk::generateSquare(
+    const int &i,
+    const int &j,
+    const std::vector<float> &flattened,
+    const float &heightMultiplier,
+    Triangle &triangle1,
+    Triangle &triangle2
+)
+{
+    // if coords out of flattened vector
+    if (flattened.size() <= (i + 1) * _size + (j + 1))
+        return;
+
+    triangle1.p[0] = {(float)(_x + i), flattened[i * _size + (j + 1)], (float)(_y + j + 1)};
+    triangle1.p[1] = {(float)(_x + i + 1), flattened[(i + 1) * _size + j], (float)(_y + j)};
+    triangle1.p[2] = {(float)(_x + i), flattened[i * _size + j], (float)(_y + j)};
+    triangle1.color = getColorBasedOnHeight(triangle1, heightMultiplier);
+
+    triangle2.p[0] = {(float)(_x + i), flattened[i * _size + (j + 1)], (float)(_y + j + 1)};
+    triangle2.p[1] = {(float)(_x + i + 1), flattened[(i + 1) * _size + (j + 1)], (float)(_y + j + 1)};
+    triangle2.p[2] = {(float)(_x + i + 1), flattened[(i + 1) * _size + j], (float)(_y + j)};
+    triangle2.color = getColorBasedOnHeight(triangle2, heightMultiplier);
 }
 
 Mesh Chunk::getMesh(void) const
